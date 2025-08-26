@@ -5,16 +5,30 @@ files:
     destination: /tmp/codedeploy-deployment-staging-area/
   - source: /scripts/configure_http_port.xsl
     destination: /tmp/codedeploy-deployment-staging-area/
+
+permissions:
+  - object: /tmp/codedeploy-deployment-staging-area/
+    pattern: "**"
+    owner: root
+    group: root
+    mode: 755
+
 hooks:
   ApplicationStop:
     - location: scripts/stop_application
       timeout: 300
+      runas: root
   BeforeInstall:
     - location: scripts/install_dependencies
       timeout: 300
+      runas: root
   ApplicationStart:
     - location: scripts/write_codedeploy_config.sh
+      runas: root
     - location: scripts/start_application
       timeout: 300
+      runas: root
   ValidateService:
     - location: scripts/basic_health_check.sh
+      timeout: 300
+      runas: root
