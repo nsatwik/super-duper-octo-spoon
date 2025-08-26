@@ -2,21 +2,20 @@
 set -e
 
 TOMCAT_DIR="/opt/tomcat"
-WAR_FILE="$TOMCAT_DIR/webapps/SampleMavenTomcatApp.war"
+WAR_SOURCE="/tmp/codedeploy-deployment-staging-area/SampleMavenTomcatApp.war"
+WAR_DEST="$TOMCAT_DIR/webapps/ROOT.war"
 
 echo "[INFO] Stopping Tomcat before deploying..."
 sudo systemctl stop tomcat || true
 
-# Ensure WAR exists
-if [ ! -f "$WAR_FILE" ]; then
-    echo "[ERROR] WAR file not found at $WAR_FILE"
+echo "[INFO] Deploying WAR..."
+if [ ! -f "$WAR_SOURCE" ]; then
+    echo "[ERROR] WAR file not found at $WAR_SOURCE"
     exit 1
 fi
 
-# Set proper ownership
-sudo chown tomcat:tomcat "$WAR_FILE"
+sudo cp $WAR_SOURCE $WAR_DEST
+sudo chown tomcat:tomcat $WAR_DEST
 
 echo "[INFO] Starting Tomcat..."
 sudo systemctl start tomcat
-
-echo "[INFO] WAR deployed and Tomcat started successfully."
