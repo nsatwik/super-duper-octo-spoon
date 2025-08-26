@@ -1,22 +1,36 @@
 version: 0.0
 os: linux
+
 files:
-  - source: target/SampleMavenTomcatApp.war
+  - source: /opt/tomcat/SampleMavenTomcatApp.war
     destination: /opt/tomcat/webapps/
+  - source: /opt/tomcat/configure_http_port.xsl
+    destination: /opt/tomcat/conf/
+
+permissions:
+  - object: /opt/tomcat/
+    pattern: "**"
+    owner: root
+    group: root
+    mode: 755
+
 hooks:
   ApplicationStop:
     - location: scripts/stop_application.sh
-      timeout: 60
-      runas: root
-  BeforeInstall:
-    - location: scripts/install_dependencies.sh
       timeout: 300
       runas: root
+
+  BeforeInstall:
+    - location: scripts/install_dependencies.sh
+      timeout: 600
+      runas: root
+
   AfterInstall:
     - location: scripts/configure_tomcat.sh
       timeout: 300
       runas: root
+
   ApplicationStart:
     - location: scripts/start_application.sh
-      timeout: 60
+      timeout: 300
       runas: root
