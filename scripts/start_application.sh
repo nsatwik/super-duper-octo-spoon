@@ -2,7 +2,7 @@
 set -e
 
 TOMCAT_DIR="/opt/tomcat"
-WAR_SOURCE="/tmp/codedeploy-deployment-staging-area/SampleMavenTomcatApp.war"
+WAR_SOURCE="/opt/tomcat/webapps/SampleMavenTomcatApp.war"
 WAR_DEST="$TOMCAT_DIR/webapps/ROOT.war"
 
 echo "[INFO] Stopping Tomcat before deploying..."
