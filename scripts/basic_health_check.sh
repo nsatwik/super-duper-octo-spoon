@@ -1,23 +1,27 @@
 #!/bin/bash
 set -e
 
-APP_URL="http://13.232.44.136:8080/"   # Change if your WAR is not at ROOT
-MAX_ATTEMPTS=15
-SLEEP_TIME=5
+# Change this to your actual EC2 private/public IP or use localhost if Tomcat is bound to 0.0.0.0
+APP_IP="13.232.44.136"
+APP_PORT="8080"
+APP_CONTEXT="SampleMavenTomcatApp"   # Your WAR name = context path
 
-echo "Starting health check for $APP_URL"
+URL="http://$APP_IP:$APP_PORT/$APP_CONTEXT/"
 
-for i in $(seq 1 $MAX_ATTEMPTS); do
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL || true)
-  echo "Attempt $i/$MAX_ATTEMPTS: Got HTTP code $HTTP_CODE"
+echo "Checking application health at $URL"
 
-  if [ "$HTTP_CODE" == "200" ]; then
-    echo "✅ Application is healthy!"
-    exit 0
-  fi
+# Retry for up to 2 minutes (24 attempts with 5s gap)
+for i in {1..24}; do
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL" || true)
 
-  sleep $SLEEP_TIME
+    if [ "$HTTP_CODE" -eq 200 ]; then
+        echo "Application is UP! HTTP $HTTP_CODE"
+        exit 0
+    else
+        echo "Attempt $i: App not ready yet (HTTP $HTTP_CODE). Retrying in 5s..."
+        sleep 5
+    fi
 done
 
-echo "❌ Server did not come up healthy after $MAX_ATTEMPTS attempts."
+echo "Server did not become healthy after 2 minutes. Failing deployment."
 exit 1
