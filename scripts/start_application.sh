@@ -1,46 +1,35 @@
 #!/bin/bash
 set -e
 
-CATALINA_HOME='/usr/share/tomcat9-codedeploy'
-DEPLOY_TO_ROOT='true'
-SERVER_HTTP_PORT='80'
+CATALINA_HOME="/usr/share/tomcat-codedeploy"
+WAR_SOURCE="$CATALINA_HOME/webapps/SampleMavenTomcatApp.war"
+CONTEXT="ROOT"
 
-TEMP_STAGING_DIR='/tmp/codedeploy-deployment-staging-area'
-WAR_STAGED_LOCATION="$TEMP_STAGING_DIR/SampleMavenTomcatApp.war"
-HTTP_PORT_CONFIG_XSL_LOCATION="$TEMP_STAGING_DIR/configure_http_port.xsl"
+echo "[INFO] Stopping Tomcat before deploying new WAR..."
+if [ -f "$CATALINA_HOME/bin/shutdown.sh" ]; then
+    chmod +x $CATALINA_HOME/bin/*.sh
+    $CATALINA_HOME/bin/shutdown.sh || true
+    sleep 5
+fi
 
-# In Tomcat, ROOT.war maps to the server root
-if [[ "$DEPLOY_TO_ROOT" = 'true' ]]; then
-    CONTEXT_PATH='ROOT'
+echo "[INFO] Deploying WAR..."
+# Remove old application
+if [ -d "$CATALINA_HOME/webapps/$CONTEXT" ]; then
+    rm -rf $CATALINA_HOME/webapps/$CONTEXT
+fi
+if [ -f "$CATALINA_HOME/webapps/$CONTEXT.war" ]; then
+    rm -f $CATALINA_HOME/webapps/$CONTEXT.war
+fi
+
+# Copy WAR (already deployed by AppSpec, but just to be safe)
+if [ -f "$WAR_SOURCE" ]; then
+    cp $WAR_SOURCE $CATALINA_HOME/webapps/$CONTEXT.war
 else
-    CONTEXT_PATH='SampleMavenTomcatApp'
+    echo "[ERROR] WAR file not found at $WAR_SOURCE"
+    exit 1
 fi
-
-echo "[INFO] Stopping Tomcat service before deploying new WAR..."
-sudo systemctl stop tomcat9 || true
-
-# Remove old app
-if [[ -f $CATALINA_HOME/webapps/$CONTEXT_PATH.war ]]; then
-    rm -f $CATALINA_HOME/webapps/$CONTEXT_PATH.war
-fi
-if [[ -d $CATALINA_HOME/webapps/$CONTEXT_PATH ]]; then
-    rm -rf $CATALINA_HOME/webapps/$CONTEXT_PATH
-fi
-
-echo "[INFO] Copying new WAR to Tomcat webapps..."
-cp $WAR_STAGED_LOCATION $CATALINA_HOME/webapps/$CONTEXT_PATH.war
-
-# Configure Tomcat server HTTP connector (set port to $SERVER_HTTP_PORT)
-if ! command -v xsltproc &> /dev/null; then
-    echo "[INFO] Installing xsltproc..."
-    sudo apt-get update -y
-    sudo apt-get install -y xsltproc
-fi
-
-cp $CATALINA_HOME/conf/server.xml $CATALINA_HOME/conf/server.xml.bak
-xsltproc $HTTP_PORT_CONFIG_XSL_LOCATION $CATALINA_HOME/conf/server.xml.bak > $CATALINA_HOME/conf/server.xml
 
 echo "[INFO] Starting Tomcat..."
-sudo systemctl start tomcat9
+$CATALINA_HOME/bin/startup.sh
 
-echo "[INFO] Deployment completed successfully!"
+echo "[INFO] Application deployed and Tomcat started successfully."
