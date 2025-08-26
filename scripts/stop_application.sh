@@ -2,4 +2,4 @@
 
 set -e
 
-service tomcat7 stop
+service tomcat9 stop
