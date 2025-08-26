@@ -1,35 +1,22 @@
 #!/bin/bash
 set -e
 
-CATALINA_HOME="/usr/share/tomcat-codedeploy"
-WAR_SOURCE="$CATALINA_HOME/webapps/SampleMavenTomcatApp.war"
-CONTEXT="ROOT"
+TOMCAT_DIR="/opt/tomcat"
+WAR_FILE="$TOMCAT_DIR/webapps/SampleMavenTomcatApp.war"
 
-echo "[INFO] Stopping Tomcat before deploying new WAR..."
-if [ -f "$CATALINA_HOME/bin/shutdown.sh" ]; then
-    chmod +x $CATALINA_HOME/bin/*.sh
-    $CATALINA_HOME/bin/shutdown.sh || true
-    sleep 5
-fi
+echo "[INFO] Stopping Tomcat before deploying..."
+sudo systemctl stop tomcat || true
 
-echo "[INFO] Deploying WAR..."
-# Remove old application
-if [ -d "$CATALINA_HOME/webapps/$CONTEXT" ]; then
-    rm -rf $CATALINA_HOME/webapps/$CONTEXT
-fi
-if [ -f "$CATALINA_HOME/webapps/$CONTEXT.war" ]; then
-    rm -f $CATALINA_HOME/webapps/$CONTEXT.war
-fi
-
-# Copy WAR (already deployed by AppSpec, but just to be safe)
-if [ -f "$WAR_SOURCE" ]; then
-    cp $WAR_SOURCE $CATALINA_HOME/webapps/$CONTEXT.war
-else
-    echo "[ERROR] WAR file not found at $WAR_SOURCE"
+# Ensure WAR exists
+if [ ! -f "$WAR_FILE" ]; then
+    echo "[ERROR] WAR file not found at $WAR_FILE"
     exit 1
 fi
 
-echo "[INFO] Starting Tomcat..."
-$CATALINA_HOME/bin/startup.sh
+# Set proper ownership
+sudo chown tomcat:tomcat "$WAR_FILE"
 
-echo "[INFO] Application deployed and Tomcat started successfully."
+echo "[INFO] Starting Tomcat..."
+sudo systemctl start tomcat
+
+echo "[INFO] WAR deployed and Tomcat started successfully."
