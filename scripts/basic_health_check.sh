@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_URL="http://localhost:8080/"   # Change if your WAR is not at ROOT
+APP_URL="http://13.232.44.136:8080/"   # Change if your WAR is not at ROOT
 MAX_ATTEMPTS=15
 SLEEP_TIME=5
 
