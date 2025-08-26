@@ -1,47 +1,67 @@
 #!/bin/bash
 set -e
 
-# Variables
-TOMCAT_VERSION=10.1.30
-CATALINA_HOME=/usr/share/tomcat-codedeploy
-TOMCAT_TAR="apache-tomcat-${TOMCAT_VERSION}.tar.gz"
-TOMCAT_URL="https://dlcdn.apache.org/tomcat/tomcat-10/v${TOMCAT_VERSION}/bin/${TOMCAT_TAR}"
-
-echo ">>> Installing Java (OpenJDK 21)"
-sudo amazon-linux-extras enable corretto21
-sudo yum install -y java-21-amazon-corretto-devel wget tar
-
-echo ">>> Setting up Tomcat ${TOMCAT_VERSION}"
-# Cleanup old
-if [ -d "$CATALINA_HOME" ]; then
-  rm -rf $CATALINA_HOME
+echo ">>> Updating system packages..."
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf update -y
+else
+    sudo yum update -y
 fi
-mkdir -p $CATALINA_HOME
+
+echo ">>> Installing Java (OpenJDK 21 if available, fallback to 17)..."
+if command -v dnf >/dev/null 2>&1; then
+    # Amazon Linux 2023
+    if sudo dnf list java-21-amazon-corretto-headless >/dev/null 2>&1; then
+        sudo dnf install -y java-21-amazon-corretto-headless
+    else
+        sudo dnf install -y java-17-amazon-corretto-headless
+    fi
+else
+    # Amazon Linux 2
+    if command -v amazon-linux-extras >/dev/null 2>&1; then
+        sudo amazon-linux-extras enable corretto21 || true
+        sudo yum install -y java-21-amazon-corretto-headless || sudo yum install -y java-17-amazon-corretto-headless
+    else
+        sudo yum install -y java-17-amazon-corretto-headless
+    fi
+fi
+
+echo ">>> Installing Tomcat..."
+TOMCAT_VERSION=9.0.93
+INSTALL_DIR="/usr/share/tomcat9-codedeploy"
+sudo mkdir -p $INSTALL_DIR
 
 cd /tmp
-wget -q $TOMCAT_URL
-tar -xzf $TOMCAT_TAR
-cp -r apache-tomcat-${TOMCAT_VERSION}/* $CATALINA_HOME
+curl -O https://dlcdn.apache.org/tomcat/tomcat-9/v$TOMCAT_VERSION/bin/apache-tomcat-$TOMCAT_VERSION.tar.gz
+sudo tar xvf apache-tomcat-$TOMCAT_VERSION.tar.gz -C $INSTALL_DIR --strip-components=1
+sudo rm -f apache-tomcat-$TOMCAT_VERSION.tar.gz
 
-# Create service
-cat >/etc/systemd/system/tomcat.service <<EOF
+sudo chmod +x $INSTALL_DIR/bin/*.sh
+
+echo ">>> Creating Tomcat systemd service..."
+sudo tee /etc/systemd/system/tomcat9.service > /dev/null <<EOL
 [Unit]
-Description=Apache Tomcat ${TOMCAT_VERSION}
+Description=Apache Tomcat 9
 After=network.target
 
 [Service]
 Type=forking
-Environment="JAVA_HOME=/usr/lib/jvm/java-21-amazon-corretto"
-Environment="CATALINA_HOME=${CATALINA_HOME}"
-ExecStart=${CATALINA_HOME}/bin/startup.sh
-ExecStop=${CATALINA_HOME}/bin/shutdown.sh
 User=root
 Group=root
-Restart=on-failure
+Environment=JAVA_HOME=/usr/lib/jvm/java
+Environment=CATALINA_HOME=$INSTALL_DIR
+Environment=CATALINA_BASE=$INSTALL_DIR
+ExecStart=$INSTALL_DIR/bin/startup.sh
+ExecStop=$INSTALL_DIR/bin/shutdown.sh
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
-EOF
+EOL
 
-systemctl daemon-reexec
-systemctl daemon-reload
+echo ">>> Reloading systemd and enabling Tomcat..."
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat9
+sudo systemctl restart tomcat9
+
+echo ">>> Installation complete!"
