@@ -1,14 +1,23 @@
 #!/bin/bash
+set -e
 
-for i in `seq 1 10`;
-do
-  HTTP_CODE=`curl --write-out '%{http_code}' -o /dev/null -m 10 -q -s http://localhost:80`
+APP_URL="http://localhost:8080/"   # Change if your WAR is not at ROOT
+MAX_ATTEMPTS=15
+SLEEP_TIME=5
+
+echo "Starting health check for $APP_URL"
+
+for i in $(seq 1 $MAX_ATTEMPTS); do
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $APP_URL || true)
+  echo "Attempt $i/$MAX_ATTEMPTS: Got HTTP code $HTTP_CODE"
+
   if [ "$HTTP_CODE" == "200" ]; then
-    echo "Successfully pulled root page."
-    exit 0;
+    echo "✅ Application is healthy!"
+    exit 0
   fi
-  echo "Attempt to curl endpoint returned HTTP Code $HTTP_CODE. Backing off and retrying."
-  sleep 10
+
+  sleep $SLEEP_TIME
 done
-echo "Server did not come up after expected time. Failing."
+
+echo "❌ Server did not come up healthy after $MAX_ATTEMPTS attempts."
 exit 1
