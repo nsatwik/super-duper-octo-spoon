@@ -25,7 +25,7 @@ sudo chmod +x $TOMCAT_DIR/bin/*.sh
 SERVICE_FILE="/etc/systemd/system/tomcat.service"
 if [ ! -f $SERVICE_FILE ]; then
     echo ">>> Creating Tomcat systemd service..."
-    sudo tee $SERVICE_FILE > /dev/null <<EOF
+    sudo tee $SERVICE_FILE >/dev/null <<EOF
 [Unit]
 Description=Apache Tomcat 9
 After=network.target
@@ -40,4 +40,19 @@ Environment=CATALINA_PID=$TOMCAT_DIR/temp/tomcat.pid
 Environment=CATALINA_HOME=$TOMCAT_DIR
 Environment=CATALINA_BASE=$TOMCAT_DIR
 
-Exec
+ExecStart=$TOMCAT_DIR/bin/startup.sh
+ExecStop=$TOMCAT_DIR/bin/shutdown.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+fi
+
+# Reload systemd and start Tomcat
+echo ">>> Reloading systemd and starting Tomcat..."
+sudo systemctl daemon-reload
+sudo systemctl enable tomcat
+sudo systemctl restart tomcat || true
+
+echo ">>> Tomcat configured and started successfully."
